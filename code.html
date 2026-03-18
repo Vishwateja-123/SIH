@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>RTC Live Demo — All-in-One</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>
+    .screen { display: none; }
+    .screen.active { display: block; }
+    #passengerMap { height: 400px; border-radius: 8px; }
+  </style>
+</head>
+<body class="bg-gray-100 font-sans min-h-screen flex flex-col">
+
+  <!-- Header -->
+<header class="bg-green-700 text-white shadow">
+    <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+      <!-- ✅ Updated: Logo + text -->
+      <h1 class="flex items-center gap-3 text-xl font-bold">
+        <img
+          src="https://www.abhibus.com/blog/wp-content/uploads/2023/05/TSRTC-Launches-e-Garuda-Buses-for-Hyderabad-Vijayawada-Route.jpg"
+          alt="TSRTC e-Garuda — RTC Live Demo"
+          class="h-10 w-auto rounded-md object-cover"
+          loading="lazy"
+          referrerpolicy="no-referrer"
+        />
+        <span>RTC Live Demo</span>
+      </h1>
+      <p class="text-sm opacity-80">Smart Transport System</p>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="flex-1 max-w-6xl mx-auto w-full px-6 py-8">
+
+    <!-- LOGIN -->
+    <section id="login" class="screen active bg-white shadow rounded-lg p-8 max-w-lg mx-auto">
+      <h2 class="text-xl font-semibold text-center text-blue-700 mb-6">Login</h2>
+      <label class="block mb-2 font-medium">Mobile Number</label>
+      <input id="mobile" class="border p-3 rounded w-full mb-4" placeholder="Enter mobile number"/>
+
+      <label class="block mb-2 font-medium">Select Role</label>
+      <select id="role" class="border p-3 rounded w-full mb-6">
+        <option value="passenger">Passenger</option>
+        <option value="conductor">Conductor</option>
+        <option value="driver">Driver</option>
+      </select>
+
+      <button id="sendOtpBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded font-semibold">Send OTP</button>
+
+      <div id="otpSection" class="hidden mt-6">
+        <label class="block mb-2 font-medium">Enter OTP</label>
+        <input id="otpInput" class="border p-3 rounded w-full mb-4"/>
+        <button id="verifyOtpBtn" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded font-semibold">Verify OTP</button>
+        <div id="otpMsg" class="text-gray-600 mt-3 text-center"></div>
+      </div>
+
+      <div class="mt-6 text-sm text-gray-600">
+        <p>Tip: You can also <strong>load your own villages.json</strong> (from Node generator) using the "Load villages.json" button in Driver or Passenger screens once logged in.</p>
+      </div>
+    </section>
+
+    <!-- PASSENGER -->
+    <section id="passenger" class="screen bg-white shadow rounded-lg p-8">
+      <h2 class="text-xl font-semibold text-blue-700 mb-6">Passenger Portal</h2>
+
+      <div class="flex gap-3 mb-4">
+        <div class="flex-1">
+          <label class="block mb-2 font-medium">From</label>
+          <select id="from" class="border p-3 rounded w-full"></select>
+        </div>
+        <div class="flex-1">
+          <label class="block mb-2 font-medium">To</label>
+          <select id="to" class="border p-3 rounded w-full"></select>
+        </div>
+      </div>
+
+      <div class="flex gap-3 mb-6">
+        <button id="searchBtn" class="flex-1 w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded font-semibold">Search Buses</button>
+        <button id="loadVillagesBtn" class="bg-gray-200 hover:bg-gray-300 px-4 py-3 rounded">Load villages.json</button>
+      </div>
+
+      <div id="results" class="space-y-4 mb-6"></div>
+
+      <button onclick="logout()" class="mt-6 w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded font-semibold">Logout</button>
+    </section>
+
+    <!-- PASSENGER TRACKING -->
+    <section id="passengerTrack" class="screen bg-white shadow rounded-lg p-8">
+      <h2 id="trackTitle" class="text-xl font-semibold text-blue-700 mb-4">Tracking Bus</h2>
+      <div id="trackInfo" class="mb-4 text-gray-700 text-lg"></div>
+      <div id="passengerMap"></div>
+      <button id="backToResults" class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded font-semibold">Back</button>
+    </section>
+
+    <!-- CONDUCTOR -->
+    <section id="conductor" class="screen bg-white shadow rounded-lg p-8">
+      <h2 class="text-xl font-semibold text-blue-700 mb-6">Conductor Portal</h2>
+      <div class="mb-6">
+        <label class="block mb-2 font-medium">Select Bus</label>
+        <select id="conductorBus" class="border p-3 rounded w-full"></select>
+      </div>
+      <div class="grid md:grid-cols-3 gap-6">
+        <div>
+          <label class="block mb-2 font-medium">Total Capacity</label>
+          <input id="capacity" type="number" class="border p-3 rounded w-full" value="40"/>
+        </div>
+        <div>
+          <label class="block mb-2 font-medium">Current Passengers</label>
+          <input id="currentPassengers" type="number" class="border p-3 rounded w-full" value="0"/>
+        </div>
+        <div>
+          <label class="block mb-2 font-medium">Departing Next Stop</label>
+          <input id="departing" type="number" class="border p-3 rounded w-full" value="0"/>
+        </div>
+      </div>
+      <button id="updateConductor" class="mt-6 w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded font-semibold">Update</button>
+      <div id="conductorStatus" class="mt-6 text-gray-700 text-lg text-center"></div>
+      <button onclick="logout()" class="mt-6 w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded font-semibold">Logout</button>
+    </section>
+
+    <!-- DRIVER -->
+    <section id="driver" class="screen bg-white shadow rounded-lg p-8">
+      <h2 class="text-xl font-semibold text-blue-700 mb-6">Driver Portal</h2>
+
+      <div class="grid md:grid-cols-3 gap-4 mb-4">
+        <div>
+          <label class="block mb-2 font-medium">Origin</label>
+          <select id="driverOrigin" class="border p-3 rounded w-full"></select>
+        </div>
+        <div>
+          <label class="block mb-2 font-medium">Destination</label>
+          <select id="driverDest" class="border p-3 rounded w-full"></select>
+        </div>
+        <div>
+          <label class="block mb-2 font-medium">Bus</label>
+          <select id="driverBus" class="border p-3 rounded w-full">
+            <option value="1">Bus #1</option>
+            <option value="2">Bus #2</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex gap-3 mb-4">
+        <button id="driverLoadVillages" class="flex-1 bg-gray-200 hover:bg-gray-300 px-4 py-3 rounded">Load villages.json</button>
+        <button id="driverStartBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded">Start Traffic Light</button>
+      </div>
+
+      <div id="driverInfo" class="bg-gray-50 border border-gray-200 rounded p-6 shadow-inner text-center mb-4">
+        <p class="text-gray-500 italic">Please select origin, destination and bus.</p>
+      </div>
+
+      <!-- 🚦 Traffic Light -->
+      <div id="trafficLight" class="mt-6 flex justify-center">
+        <div id="lightCircle" class="w-20 h-20 rounded-full shadow-lg border-4 border-gray-300 bg-red-600"></div>
+      </div>
+      <p id="lightStatus" class="mt-3 text-center font-bold text-lg text-red-600">RED</p>
+
+      <div id="driverNotice" class="mt-4 text-center text-red-600 font-semibold"></div>
+      <button onclick="logout()" class="mt-6 w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded font-semibold">Logout</button>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-gray-200 text-gray-600 py-4 text-center text-sm">
+    ©️ 2025 RTC Live Demo • Smart Transport System
+  </footer>
+
+  <input id="villagesFileInput" type="file" accept="application/json" class="hidden" />
+
+  <script>
+  /*************************************************************************
+   * Single-file frontend that:
+   * - runs with built-in sample villages (20 towns) for demo
+   * - allows loading villages.json (array of {id,name,lat,lng,district}) via file picker
+   * - generates routes on demand for an origin: origin -> every other village,
+   *   creating 2 buses per route (busNo 1 & 2)
+   * - implements traffic-light rule: when Bus#1 turns GREEN, Bus#2 must stay RED
+   *   for remaining time of 2 minutes from Bus#1's green start
+   *
+   * Notes:
+   * - This design avoids precomputing all N^2 routes in memory.
+   * - For very large villages.json (12k+), do not load all routes at once —
+   *   use on-demand server-side endpoints or chunked files.
+   *************************************************************************/
+
+  // ---------------- Sample villages (20 towns) - runs immediately for demo ---------------
+  let villages = [
+    "Hyderabad","Secunderabad","Warangal","Karimnagar","Siddipet",
+    "Nizamabad","Kamareddy","Khammam","Mahbubnagar","Adilabad",
+    "Suryapet","Kalwakurthy","Bhainsa","Narayanpet","Medak",
+    "Shamshabad","Bhupalpally","Dundigal","Huzurnagar","Medchal"
+  ].map((name, idx) => {
+    // sample coords (if known, use approximate; else small jitter)
+    const coords = {
+      "Hyderabad":[17.3850,78.4867],"Secunderabad":[17.4399,78.4983],"Warangal":[17.9689,79.5941],
+      "Karimnagar":[18.4386,79.1288],"Siddipet":[18.1088,78.8526],"Nizamabad":[18.6721,78.0942],
+      "Kamareddy":[18.3269,78.3419],"Khammam":[17.2473,80.1430],"Mahbubnagar":[16.7426,77.9809],
+      "Adilabad":[19.6666,78.5316],"Suryapet":[17.1318,79.6241],"Kalwakurthy":[16.5708,78.1309],
+      "Bhainsa":[19.6396,77.9197],"Narayanpet":[16.7721,77.2607],"Medak":[18.0156,78.2729],
+      "Shamshabad":[17.3606,78.4290],"Bhupalpally":[18.0067,79.8041],"Dundigal":[17.5180,78.2920],
+      "Huzurnagar":[17.8390,79.5784],"Medchal":[17.4942,78.5570]
+    }[name] || [17.0 + Math.random(), 78.0 + Math.random()];
+    return {
+      id: String(idx+1),
+      name,
+      lat: coords[0] + (Math.random()-0.5)*0.02,
+      lng: coords[1] + (Math.random()-0.5)*0.02,
+      district: "Demo"
+    };
+  });
+
+  // ---------------- State ----------------
+  let currentPassengerMap = null;
+  let passengerMarker = null;
+  let passengerInterval = null;
+
+  // traffic light timers
+  let lightInterval = null;
+  let lightTimeout = null;
+
+  // store lastStarted for bus1 of a route in-memory (route key = originId + '->' + destId)
+  // For production with many villages, this should be persisted server-side.
+  const routeState = {}; // { "originId->destId": { bus1LastStarted: timestamp } }
+
+  // ---------------- Helpers ----------------
+  function routeKey(originId, destId){ return originId + '->' + destId; }
+
+  function showScreen(id){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function populateVillageSelects(){
+    // passenger selects
+    const elFrom = document.getElementById('from');
+    const elTo = document.getElementById('to');
+    const elDriverOrigin = document.getElementById('driverOrigin');
+    const elDriverDest = document.getElementById('driverDest');
+    const elConductor = document.getElementById('conductorBus');
+
+    [elFrom, elTo, elDriverOrigin, elDriverDest, elConductor].forEach(el => {
+      if(!el) return;
+      el.innerHTML = '';
+    });
+
+    villages.forEach(v=>{
+      const o1 = document.createElement('option'); o1.value = v.id; o1.innerText = v.name;
+      const o2 = document.createElement('option'); o2.value = v.id; o2.innerText = v.name;
+      const o3 = document.createElement('option'); o3.value = v.id; o3.innerText = v.name;
+      const o4 = document.createElement('option'); o4.value = v.id; o4.innerText = v.name;
+      const o5 = document.createElement('option'); o5.value = v.id; o5.innerText = v.name;
+      elFrom.appendChild(o1);
+      elTo.appendChild(o2);
+      elDriverOrigin.appendChild(o3);
+      elDriverDest.appendChild(o4);
+      elConductor.appendChild(o5);
+    });
+  }
+
+  // initial populate
+  populateVillageSelects();
+
+  // ---------------- OTP Login ----------------
+  let generatedOtp = null;
+  document.getElementById('sendOtpBtn').onclick = ()=>{
+    const mobile = document.getElementById('mobile').value.trim();
+    const role = document.getElementById('role').value;
+    if(!mobile){ alert('Enter mobile number'); return; }
+    generatedOtp = Math.floor(1000 + Math.random()*9000);
+    document.getElementById('otpSection').classList.remove('hidden');
+    document.getElementById('otpMsg').innerText = "(Demo) Your OTP is: " + generatedOtp;
+  };
+  document.getElementById('verifyOtpBtn').onclick = ()=>{
+    const otp = document.getElementById('otpInput').value.trim();
+    if(String(otp) === String(generatedOtp)){
+      const role = document.getElementById('role').value;
+      showScreen(role);
+      if(role === 'driver') initDriver();
+      if(role === 'conductor') initConductor();
+    } else {
+      alert('Invalid OTP');
+    }
+  };
+
+  function logout(){
+    showScreen('login');
+    document.getElementById('otpSection').classList.add('hidden');
+    document.getElementById('otpInput').value = '';
+    document.getElementById('mobile').value = '';
+  }
+
+  // ---------------- Passenger search (on-demand routes generation) ----------------
+  document.getElementById('searchBtn').onclick = ()=>{
+    const fromId = document.getElementById('from').value;
+    const toId = document.getElementById('to').value;
+    const results = document.getElementById('results');
+    results.innerHTML = '';
+
+    if(!fromId || !toId){ results.innerHTML = "<p class='text-red-600'>Select both origin and destination.</p>"; return; }
+    if(fromId === toId){ results.innerHTML = "<p class='text-red-600'>Origin and destination must differ.</p>"; return; }
+
+    // Build route (on-demand): origin -> dest
+    const origin = villages.find(v => v.id === fromId);
+    const dest = villages.find(v => v.id === toId);
+    if(!origin || !dest) { results.innerHTML = "<p class='text-red-600'>Invalid selection.</p>"; return; }
+
+    // create two buses for this route
+    const route = {
+      originId: origin.id, originName: origin.name,
+      destId: dest.id, destName: dest.name,
+      buses: [
+        { id: `${origin.id}-${dest.id}-1`, busNo: 1, capacity: 40, passengers: Math.floor(Math.random()*30), fare: Math.floor(20 + Math.random()*100), lat: origin.lat, lng: origin.lng },
+        { id: `${origin.id}-${dest.id}-2`, busNo: 2, capacity: 40, passengers: Math.floor(Math.random()*30), fare: Math.floor(20 + Math.random()*100), lat: origin.lat, lng: origin.lng }
+      ]
+    };
+
+    // show route(s)
+    const div = document.createElement('div'); div.className = 'p-4 bg-gray-50 rounded border shadow-sm';
+    div.innerHTML = `<div><b>${route.originName} → ${route.destName}</b> (${route.originId} → ${route.destId})<br>Fare (example): ₹${route.buses[0].fare}</div>`;
+    const trackBtn = document.createElement('button');
+    trackBtn.innerText = 'Track';
+    trackBtn.className = 'mt-3 bg-blue-600 text-white px-3 py-2 rounded';
+    trackBtn.onclick = ()=> openPassengerTrack(route);
+    div.appendChild(trackBtn);
+    results.appendChild(div);
+  };
+
+  // allow loading villages.json via passenger button
+  document.getElementById('loadVillagesBtn').onclick = ()=> {
+    document.getElementById('villagesFileInput').click();
+    // when file selected, handler below will load it
+  };
+
+  // file input handler (loads villages.json)
+  document.getElementById('villagesFileInput').addEventListener('change', async (ev)=>{
+    const f = ev.target.files[0];
+    if(!f) return;
+    try{
+      const txt = await f.text();
+      const parsed = JSON.parse(txt);
+      if(!Array.isArray(parsed)){ alert('villages.json must be an array'); return; }
+      // minimal validation
+      if(!parsed[0].id || !parsed[0].name){ alert('villages.json items need id and name'); return; }
+      villages = parsed.map((v,i)=>({
+        id: String(v.id || i+1),
+        name: String(v.name || ('V'+(i+1))),
+        lat: v.lat ? Number(v.lat) : (17.385 + (Math.random()-0.5)*0.1),
+        lng: v.lng ? Number(v.lng) : (78.486 + (Math.random()-0.5)*0.1),
+        district: v.district || ''
+      }));
+      populateVillageSelects();
+      alert('Loaded villages.json ('+villages.length+' entries). For best performance, avoid extremely large files in browser.');
+    } catch(err){
+      console.error(err);
+      alert('Failed to load villages.json: ' + err.message);
+    } finally {
+      // clear selection so same file can be loaded again
+      ev.target.value = '';
+    }
+  });
+
+  // ---------------- Passenger tracking map ----------------
+  function openPassengerTrack(route){
+    showScreen('passengerTrack');
+    document.getElementById('trackTitle').innerText = `Tracking ${route.originName} → ${route.destName}`;
+    document.getElementById('trackInfo').innerText = `Fare: ₹${route.buses[0].fare}, Buses: ${route.buses.length}`;
+
+    if (currentPassengerMap) { try{ currentPassengerMap.remove(); } catch(e){} }
+    if (passengerInterval) { clearInterval(passengerInterval); passengerInterval = null; }
+
+    currentPassengerMap = L.map('passengerMap').setView([route.buses[0].lat, route.buses[0].lng], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'©️ OpenStreetMap' }).addTo(currentPassengerMap);
+    passengerMarker = L.marker([route.buses[0].lat, route.buses[0].lng]).addTo(currentPassengerMap).bindPopup(route.buses[0].id).openPopup();
+
+    passengerInterval = setInterval(()=>{
+      // simulate movement
+      const cur = passengerMarker.getLatLng();
+      const newLat = cur.lat + (Math.random()-0.5)*0.01;
+      const newLng = cur.lng + (Math.random()-0.5)*0.01;
+      passengerMarker.setLatLng([newLat,newLng]);
+      currentPassengerMap.setView([newLat,newLng]);
+    }, 3000);
+  }
+
+  document.getElementById('backToResults').onclick = ()=>{
+    if (passengerInterval) { clearInterval(passengerInterval); passengerInterval = null; }
+    showScreen('passenger');
+  };
+
+  // ---------------- Conductor ----------------
+  function initConductor(){
+    const sel = document.getElementById('conductorBus'); sel.innerHTML = '';
+    // for demo populate with some sample route ids (origin->dest)
+    villages.slice(0,30).forEach(v=>{
+      const o = document.createElement('option'); o.value = v.id; o.innerText = v.name;
+      sel.appendChild(o);
+    });
+  }
+  document.getElementById('updateConductor').onclick = ()=>{
+    const id = document.getElementById('conductorBus').value;
+    const b = villages.find(v=>v.id === id);
+    if(!b) return;
+    b.capacity = parseInt(document.getElementById('capacity').value) || b.capacity;
+    b.passengers = parseInt(document.getElementById('currentPassengers').value) || b.passengers;
+    b.departing = parseInt(document.getElementById('departing').value) || b.departing;
+    document.getElementById('conductorStatus').innerText = `Updated ${b.name}: ${b.passengers} onboard, ${b.departing} departing.`;
+  };
+
+  // ---------------- Driver ----------------
+  function initDriver(){
+    document.getElementById('driverOrigin').onchange = onDriverOriginChange;
+    document.getElementById('driverDest').onchange = onDriverDestChange;
+    document.getElementById('driverStartBtn').onclick = onDriverStart;
+    document.getElementById('driverLoadVillages').onclick = ()=> document.getElementById('villagesFileInput').click();
+    // populate initial selects (already done by populateVillageSelects)
+  }
+
+  function onDriverOriginChange(){
+    const originId = document.getElementById('driverOrigin').value;
+    const destSel = document.getElementById('driverDest');
+    destSel.innerHTML = '';
+    if(!originId) return;
+    villages.forEach(v=>{
+      if(v.id === originId) return;
+      const o = document.createElement('option'); o.value = v.id; o.innerText = v.name;
+      destSel.appendChild(o);
+    });
+  }
+
+  function onDriverDestChange(){
+    // show route info preview
+    const originId = document.getElementById('driverOrigin').value;
+    const destId = document.getElementById('driverDest').value;
+    const info = document.getElementById('driverInfo');
+    if(!originId || !destId){ info.innerHTML = '<p class="text-gray-500 italic">Please select origin and destination.</p>'; return; }
+    const origin = villages.find(v=>v.id===originId);
+    const dest = villages.find(v=>v.id===destId);
+    if(!origin || !dest) return;
+    info.innerHTML = `
+      <h3 class="text-lg font-bold">${origin.name} → ${dest.name}</h3>
+      <p>Sample route preview. Bus #1 and Bus #2 will be available, Bus #2 may wait if Bus #1 started recently.</p>
+    `;
+    // update notice about waiting if route state has bus1 start
+    const key = routeKey(originId, destId);
+    const st = routeState[key];
+    if(st && st.bus1LastStarted){
+      const elapsed = Date.now() - st.bus1LastStarted;
+      if(elapsed < 120000){
+        const remain = Math.ceil((120000 - elapsed)/1000);
+        document.getElementById('driverNotice').innerText = `Bus #2 must wait ${Math.ceil(remain/60)} min (${remain}s)`;
+      } else {
+        document.getElementById('driverNotice').innerText = '';
+      }
+    } else {
+      document.getElementById('driverNotice').innerText = '';
+    }
+  }
+
+  function onDriverStart(){
+    const originId = document.getElementById('driverOrigin').value;
+    const destId = document.getElementById('driverDest').value;
+    const busNo = Number(document.getElementById('driverBus').value);
+    if(!originId || !destId || !busNo){ alert('Select origin, destination and bus'); return; }
+    startTrafficLight(originId, destId, busNo);
+  }
+
+  function clearLightTimers(){
+    if(lightInterval){ clearInterval(lightInterval); lightInterval = null; }
+    if(lightTimeout){ clearTimeout(lightTimeout); lightTimeout = null; }
+  }
+
+  // Traffic light logic per selected route+bus
+  // - If busNo === 1 : begin toggling immediately, and record lastStarted
+  // - If busNo === 2 : check bus1.lastStarted for same route; if bus1 started less than 120s ago,
+  //     force RED for remaining time, then begin toggling; else begin toggling immediately.
+  function startTrafficLight(originId, destId, busNo){
+    clearLightTimers();
+    const circle = document.getElementById('lightCircle');
+    const status = document.getElementById('lightStatus');
+
+    function setGreen(){
+      circle.classList.remove('bg-red-600'); circle.classList.add('bg-green-600');
+      status.innerText = 'GREEN'; status.classList.remove('text-red-600'); status.classList.add('text-green-600');
+    }
+    function setRed(){
+      circle.classList.remove('bg-green-600'); circle.classList.add('bg-red-600');
+      status.innerText = 'RED'; status.classList.remove('text-green-600'); status.classList.add('text-red-600');
+    }
+
+    const key = routeKey(originId, destId);
+    let state = routeState[key];
+    if(!state){ state = { bus1LastStarted: null }; routeState[key] = state; }
+
+    // begin toggling cycle (2-minute toggle). startGreen indicates start with GREEN
+    function beginCycle(startGreen){
+      let isGreen = !!startGreen;
+      if(isGreen){
+        setGreen();
+        if(busNo === 1){
+          // record bus1 start time so other buses follow rule
+          state.bus1LastStarted = Date.now();
+        }
+      } else {
+        setRed();
+      }
+      // every 2 minutes toggle
+      lightInterval = setInterval(()=>{
+        isGreen = !isGreen;
+        if(isGreen){
+          setGreen();
+          if(busNo === 1){
+            state.bus1LastStarted = Date.now();
+          }
+        } else {
+          setRed();
+        }
+      }, 120000); // 2 minutes
+    }
+
+    if(busNo === 1){
+      // Bus1 starts immediately green
+      beginCycle(true);
+      document.getElementById('driverNotice').innerText = 'Bus #1 cycle started (GREEN).';
+    } else {
+      // bus2 must inspect bus1's lastStarted
+      const last = state.bus1LastStarted;
+      if(last && (Date.now() - last) < 120000){
+        // force red for remaining time
+        const remaining = 120000 - (Date.now() - last);
+        setRed();
+        document.getElementById('driverNotice').innerText = `Bus #2 forced RED for ${Math.ceil(remaining/1000)}s due to Bus #1 recent start.`;
+        lightTimeout = setTimeout(()=>{
+          beginCycle(true); // after waiting, begin with green
+          document.getElementById('driverNotice').innerText = 'Bus #2 cycle started after enforced wait.';
+        }, remaining);
+      } else {
+        // no recent bus1 start, start normally
+        beginCycle(true);
+        document.getElementById('driverNotice').innerText = 'Bus #2 cycle started (GREEN).';
+      }
+    }
+  }
+
+  // ---------------- Initialization ----------------
+  // on load, show login screen (already visible)
+  // attach driver init when role selected and OTP verified (verify handler calls initDriver)
+
+  // populate selects on initial load (already done above)
+  // For convenience, select first entries if present
+  if(villages.length > 0){
+    document.getElementById('from').value = villages[0].id;
+    document.getElementById('to').value = villages[1] ? villages[1].id : villages[0].id;
+    document.getElementById('driverOrigin').value = villages[0].id;
+    onDriverOriginChange();
+  }
+
+  </script>
+</body>
+</html>
